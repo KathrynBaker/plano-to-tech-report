@@ -21,6 +21,7 @@ class Columns(Enum):
     ADMIN_TAGS = 11
     TECH_NOTES = 13
     ROOM = 4
+    FORMAT = 8
 
 
 # SEC Supported Rooms
@@ -109,6 +110,16 @@ def split_participant_string(participants_string):
     return people
 
 
+def modify_attendance_type(attendance_type):
+    match attendance_type:
+        case None:
+            return "UNKNOWN"
+        case "hybrid":
+            return "in person"
+        case _:
+            return attendance_type
+
+
 def session_participants(moderator, session_participants_string):
     people = split_participant_string(session_participants_string)
     people_strings = []
@@ -117,8 +128,7 @@ def session_participants(moderator, session_participants_string):
         moderator_attendance = participants[moderator]
     except KeyError:
         pass
-    if moderator_attendance is None:
-        moderator_attendance = "Unknown"
+    moderator_attendance = modify_attendance_type(moderator_attendance)
     people_strings.append(str(moderator)+" (Mod, "+moderator_attendance+")")
 
     for person in people:
@@ -127,14 +137,13 @@ def session_participants(moderator, session_participants_string):
             person_attendance = participants[person]
         except KeyError:
             pass
-        if person_attendance is None:
-            person_attendance = "Unknown"
+        person_attendance = modify_attendance_type(person_attendance)
         people_strings.append(str(person) + " (" + person_attendance + ")")
 
     return "\n".join(people_strings)
 
 
-def session_hybrid_participants(moderator, session_participants_string):
+def session_virtual_participants(moderator, session_participants_string):
     people = split_participant_string(session_participants_string)
     people_strings = []
     moderator_attendance = "Unknown"
@@ -144,8 +153,8 @@ def session_hybrid_participants(moderator, session_participants_string):
         pass
     if moderator_attendance is None:
         moderator_attendance = "Unknown"
-    hybrid_participant_present = moderator_attendance.find("brid")
-    if hybrid_participant_present >= 0:
+    virtual_participant_present = moderator_attendance.find("irtu")
+    if virtual_participant_present >= 0:
         people_strings.append(str(moderator))
 
     for person in people:
@@ -156,13 +165,12 @@ def session_hybrid_participants(moderator, session_participants_string):
             pass
         if person_attendance is None:
             person_attendance = "Unknown"
-        # people_strings.append(str(person) + " (" + person_attendance + ")")\
-        hybrid_participant_present = person_attendance.find("brid")
-        if hybrid_participant_present >= 0:
+        virtual_participant_present = person_attendance.find("irtu")
+        if virtual_participant_present >= 0:
             people_strings.append(str(person))
 
     if people_strings:
-        people = "Hybrid: " + "; ".join(people_strings)
+        people = "Virtual: " + "; ".join(people_strings)
     else:
         people = ""
     print(people)
@@ -185,7 +193,7 @@ def session_participant_details():
     return session_participant_info
 
 
-def session_hybrid_participant_details():
+def session_virtual_participant_details():
     session_participants_workbook = openpyxl.load_workbook(session_participants_path)
     session_participants_sheet = session_participants_workbook.active
     last_session = session_participants_sheet.max_row + 1
@@ -193,7 +201,7 @@ def session_hybrid_participant_details():
 
     for k in range(2, last_session):
         session_participant_info[session_participants_sheet.cell(row=k, column=1).value] = (
-            session_hybrid_participants(
+            session_virtual_participants(
                 session_participants_sheet.cell(row=k, column=6).value,
                 session_participants_sheet.cell(row=k, column=7).value
             ))
@@ -202,7 +210,7 @@ def session_hybrid_participant_details():
 
 
 sessions_participants = session_participant_details()
-hybrid_participants = session_hybrid_participant_details()
+virtual_participants = session_virtual_participant_details()
 
 
 class TechRecord:
@@ -241,18 +249,18 @@ class TechRecord:
 
         print(complexity)
         try:
-            hybrid_people_in_session = hybrid_participants[title]
+            virtual_people_in_session = virtual_participants[title]
         except KeyError:
-            hybrid_people_in_session = ""
+            virtual_people_in_session = ""
 
-        if hybrid_people_in_session != "":
+        if virtual_people_in_session != "":
             try:
-                notes = hybrid_people_in_session + "\n" + notes
+                notes = virtual_people_in_session + "\n" + notes
             except TypeError:
-                notes = hybrid_people_in_session
+                notes = virtual_people_in_session
             finally:
-                complexity = "AMBER"
-                print("Set to Amber")
+                if complexity != "AMBER" or complexity != "RED":
+                    complexity = "AMBER"
 
         interim_info = {"A": start_time.strftime("%H:%M"), "B": duration, "C": title,
                         "D": record, "E": stream, "F": complexity, "G": people_in_session, "H": notes}
