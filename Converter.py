@@ -4,9 +4,9 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.worksheet import page
 import datetime
 
-session_needs_path = "SessionNeeds-07-21-2024.xlsx"
-session_participants_path = "SessionsWithParticipants07-21-2024.xlsx"
-participant_availabilities_path = "ParticipantAvailabilities_07-21-2024.xlsx"
+session_needs_path = "PlanoReports/SessionNeeds-07-21-2024.xlsx"
+session_participants_path = "PlanoReports/SessionsWithParticipants07-21-2024.xlsx"
+participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_07-21-2024.xlsx"
 
 header_info = {"A": "Start Time", "B": "Duration", "C": "Title", "D": "Record Session", "E": "Stream Session",
                "F": "Complexity", "G": "Participants", "H": "Notes"}
