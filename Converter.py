@@ -11,6 +11,14 @@ participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_07-21-
 header_info = {"A": "Start Time", "B": "Duration", "C": "Title", "D": "Record Session", "E": "Stream Session",
                "F": "Complexity", "G": "Participants", "H": "Notes"}
 
+panel_known_exceptions_list = [
+    "Future Worldcons Q&A",
+    "Deb Geisler Memorial"
+]
+
+large_panel_known_exceptions_list = [
+    "African Cultural Influences in Fantasy"
+]
 
 class Columns(Enum):
     START = 2
@@ -122,14 +130,21 @@ def modify_attendance_type(attendance_type):
 
 def session_participants(moderator, session_participants_string):
     people = split_participant_string(session_participants_string)
+    moderators = []
+    try:
+        if moderator.find(";"):
+            moderators = split_participant_string(moderator)
+    except:
+        moderators.append(moderator)
     people_strings = []
     moderator_attendance = "Unknown"
-    try:
-        moderator_attendance = participants[moderator]
-    except KeyError:
-        pass
-    moderator_attendance = modify_attendance_type(moderator_attendance)
-    people_strings.append(str(moderator)+" (Mod, "+moderator_attendance+")")
+    for mod in moderators:
+        try:
+            moderator_attendance = participants[mod]
+        except KeyError:
+            pass
+        moderator_attendance = modify_attendance_type(moderator_attendance)
+        people_strings.append(str(moderator)+" (Mod, "+moderator_attendance+")")
 
     for person in people:
         person_attendance = "Unknown"
@@ -173,7 +188,6 @@ def session_virtual_participants(moderator, session_participants_string):
         people = "Virtual: " + "; ".join(people_strings)
     else:
         people = ""
-    print(people)
     return people
 
 
@@ -220,7 +234,7 @@ class TechRecord:
         self.info = []
 
     def add_info(self, start_time, duration, title, record, stream, admin_tags, notes, interim_room,
-                 session_participants):
+                 info_session_participants, info_format):
 
         if (title.find("CANCELLED") >= 0) or (title.find("WITHDRAWN") >= 0):
             return
@@ -237,7 +251,7 @@ class TechRecord:
             pass
 
         try:
-            people_in_session = session_participants[title]
+            people_in_session = info_session_participants[title]
         except KeyError:
             people_in_session = ""
 
@@ -247,7 +261,6 @@ class TechRecord:
             record = "Yes"
             stream = "Yes"
 
-        print(complexity)
         try:
             virtual_people_in_session = virtual_participants[title]
         except KeyError:
@@ -261,6 +274,66 @@ class TechRecord:
             finally:
                 if complexity != "AMBER" or complexity != "RED":
                     complexity = "AMBER"
+
+        # Add the session format to the notes
+        format_note = ""
+
+        if info_format is None:
+            format_given = "None"
+        else:
+            format_given = info_format
+
+        if title.find("UNAVAIL") >= 0:
+            format_given = "Unavailable"
+
+        match format_given:
+            case "Rehearsal" | "Ceremony" | "Performance" | "Auction" | "Concert" | "Gameshow" | \
+                 "Other" | "Meeting":
+                format_note = format_given
+            case "Takedown":
+                format_note = "Strike"
+            case "Setup":
+                format_note = "Get-in"
+            case "Unavailable":
+                format_note = "No public items or participants expected in this session"
+            case "Talk":
+                if people_in_session.count("\n") == 0:
+                    format_note = "Talk given by 1 person"
+                else:
+                    format_note = "Talk given by " + str(people_in_session.count("\n")+1) + " people"
+            case "Panel":
+                if (people_in_session.count("\n") == 0) and (len(people_in_session) < 1):
+                    if title in panel_known_exceptions_list:
+                        format_note = "Panel"
+                    else:
+                        format_note = "Panel with no people listed against it?"
+                        print(title + ": " + format_note)
+                else:
+                    format_note = "Panel of " + str(people_in_session.count("\n")+1) + " people"
+                if (people_in_session.count("\n") >= 5) and (title not in large_panel_known_exceptions_list):
+                    print("There are too many participants for " + title + " in " + room)
+            case "Interview" | "Dialogue":
+                if (people_in_session.count("\n") == 0) and (len(people_in_session) < 1):
+                    format_note = "Interview with no people listed against it?"
+                    print(title + ": " + format_note)
+                else:
+                    format_note = "Interview of " + str(people_in_session.count("\n")+1) + " people"
+            case "Presentation":
+                if (people_in_session.count("\n") == 0) and (len(people_in_session) < 1):
+                    format_note = "Presentation with no people listed against it?"
+                    print(title + ": " + format_note)
+                else:
+                    format_note = str(people_in_session.count("\n") + 1) + " presentations"
+            case "None":
+                print("None can't be done for " + title)
+            case _:
+                print("Format " + str(info_format) + " not currently covered")
+
+        if format_note != "":
+            try:
+                notes = format_note + "\n" + notes
+            except TypeError:
+                notes = format_note
 
         interim_info = {"A": start_time.strftime("%H:%M"), "B": duration, "C": title,
                         "D": record, "E": stream, "F": complexity, "G": people_in_session, "H": notes}
@@ -280,6 +353,8 @@ def build_records():
     return build_tech_records
 
 
+# print(sessions_participants)
+# Ingest the session needs
 wb_obj = openpyxl.load_workbook(session_needs_path)
 
 sheet_obj = wb_obj.active
@@ -309,9 +384,11 @@ for i in range(2, last_row):
         sheet_obj.cell(row=i, column=Columns.STREAM.value).value,
         sheet_obj.cell(row=i, column=Columns.ADMIN_TAGS.value).value,
         sheet_obj.cell(row=i, column=Columns.TECH_NOTES.value).value,
-        room, sessions_participants
+        room, sessions_participants,
+        sheet_obj.cell(row=i, column=Columns.FORMAT.value).value,
     )
 
+# Build the output report(s)
 for sheet_day in Days:
     file_name = "tech_printout - "+sheet_day.value+".xlsx"
     workbook = openpyxl.Workbook()
