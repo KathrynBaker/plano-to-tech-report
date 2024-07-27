@@ -323,7 +323,7 @@ class TechRecord:
                     format_note = "Presentation with no people listed against it?"
                     print(title + ": " + format_note)
                 else:
-                    format_note = str(people_in_session.count("\n") + 1) + " presentations"
+                    format_note = str(people_in_session.count("\n") + 1) + " presenter(s)"
             case "None":
                 print("None can't be done for " + title)
             case _:
