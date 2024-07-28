@@ -4,20 +4,22 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.worksheet import page
 import datetime
 
-session_needs_path = "PlanoReports/SessionNeeds-07-21-2024.xlsx"
-session_participants_path = "PlanoReports/SessionsWithParticipants07-21-2024.xlsx"
-participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_07-21-2024.xlsx"
+session_needs_path = "PlanoReports/SessionNeeds-07-28-2024 (1).xlsx"
+session_participants_path = "PlanoReports/SessionsWithParticipants07-28-2024 (1).xlsx"
+participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_07-28-2024 (1).xlsx"
 
 header_info = {"A": "Start Time", "B": "Duration", "C": "Title", "D": "Record Session", "E": "Stream Session",
                "F": "Complexity", "G": "Participants", "H": "Notes"}
 
 panel_known_exceptions_list = [
-    "Future Worldcons Q&A",
-    "Deb Geisler Memorial"
+    "",
+#    "Future Worldcons Q&A",
+#    "Deb Geisler Memorial"
 ]
 
 large_panel_known_exceptions_list = [
-    "African Cultural Influences in Fantasy"
+    "",
+#    "African Cultural Influences in Fantasy"
 ]
 
 class Columns(Enum):
@@ -32,6 +34,7 @@ class Columns(Enum):
     FORMAT = 8
 
 
+"""
 # SEC Supported Rooms
 class Rooms(Enum):
     CLYDE = "Clyde Auditorium"
@@ -46,7 +49,6 @@ class Rooms(Enum):
     D1 = "Dochart 1"
     M1 = "Meeting Academy M1"
     M4 = "Meeting Academy M4"
-
 
 """
 # All Rooms
@@ -75,7 +77,7 @@ class Rooms(Enum):
     JURA = "Jura"
     BARRA = "Barra"
     INS = "Inspiration"
-"""
+
 
 
 class Days(Enum):
@@ -239,7 +241,15 @@ class TechRecord:
         if (title.find("CANCELLED") >= 0) or (title.find("WITHDRAWN") >= 0):
             return
 
-        complexity = "Unknown"
+        if info_format == "Meetup":
+            return
+
+        if title.find("Placeholder for Mark") >= 0:
+            complexity = "GREY"
+            info_format = "Unavailable"
+        else:
+            complexity = "Unknown"
+
         try:
             if "Tech - " in admin_tags:
                 offset = admin_tags.find("Tech - ") + 7
@@ -288,7 +298,8 @@ class TechRecord:
 
         match format_given:
             case "Rehearsal" | "Ceremony" | "Performance" | "Auction" | "Concert" | "Gameshow" | \
-                 "Other" | "Meeting":
+                 "Other" | "Meeting" | "Dance" | "Workshop" | "Reading" | "Filk Circle" | "Book Launch" | \
+                 "Game" | "Demonstration" | "Party" | "Discussion":
                 format_note = format_given
             case "Takedown":
                 format_note = "Strike"
@@ -311,19 +322,21 @@ class TechRecord:
                 else:
                     format_note = "Panel of " + str(people_in_session.count("\n")+1) + " people"
                 if (people_in_session.count("\n") >= 5) and (title not in large_panel_known_exceptions_list):
-                    print("There are too many participants for " + title + " in " + room)
+                    print("There are too many participants for " + title + " in " + Rooms[room].value)
+                    if virtual_people_in_session != "":
+                        print("But some are virtual: " + virtual_people_in_session)
             case "Interview" | "Dialogue":
                 if (people_in_session.count("\n") == 0) and (len(people_in_session) < 1):
                     format_note = "Interview with no people listed against it?"
                     print(title + ": " + format_note)
                 else:
-                    format_note = "Interview of " + str(people_in_session.count("\n")+1) + " people"
+                    format_note = "Interview with " + str(people_in_session.count("\n")+1) + " people on stage"
             case "Presentation":
                 if (people_in_session.count("\n") == 0) and (len(people_in_session) < 1):
                     format_note = "Presentation with no people listed against it?"
                     print(title + ": " + format_note)
                 else:
-                    format_note = str(people_in_session.count("\n") + 1) + " presenter(s)"
+                    format_note = format_given + "\n" + str(people_in_session.count("\n") + 1) + " presenter(s)"
             case "None":
                 print("None can't be done for " + title)
             case _:
