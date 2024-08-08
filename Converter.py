@@ -4,9 +4,12 @@ from openpyxl.styles import Font, Alignment
 from openpyxl.worksheet import page
 import datetime
 
-session_needs_path = "PlanoReports/SessionNeeds-07-28-2024 (1).xlsx"
-session_participants_path = "PlanoReports/SessionsWithParticipants07-28-2024 (1).xlsx"
-participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_07-28-2024 (1).xlsx"
+# Session Needs Report - in Program Ops Section
+session_needs_path = "PlanoReports/SessionNeeds-08-07-2024.xlsx"
+# Sessions with Participants Report - In Sessions Section
+session_participants_path = "PlanoReports/SessionsWithParticipants08-07-2024.xlsx"
+# Participants Availabilities Report - In Participants Section
+participant_availabilities_path = "PlanoReports/ParticipantAvailabilities_08-07-2024.xlsx"
 
 header_info = {"A": "Start Time", "B": "Duration", "C": "Title", "D": "Record Session", "E": "Stream Session",
                "F": "Complexity", "G": "Participants", "H": "Notes"}
@@ -65,7 +68,7 @@ class Rooms(Enum):
     D1 = "Dochart 1"
     D2 = "Dochart 2"
     M1 = "Meeting Academy M1"
-    M23 = "Meeting Academy M2/3"
+    M23 = "Meeting Academy M2/M3"
     M4 = "Meeting Academy M4"
     AG1 = "Argyll 1"
     AG2 = "Argyll 2"
@@ -133,20 +136,22 @@ def modify_attendance_type(attendance_type):
 def session_participants(moderator, session_participants_string):
     people = split_participant_string(session_participants_string)
     moderators = []
-    try:
-        if moderator.find(";"):
-            moderators = split_participant_string(moderator)
-    except:
-        moderators.append(moderator)
     people_strings = []
-    moderator_attendance = "Unknown"
-    for mod in moderators:
+    if moderator:
         try:
-            moderator_attendance = participants[mod]
-        except KeyError:
-            pass
-        moderator_attendance = modify_attendance_type(moderator_attendance)
-        people_strings.append(str(moderator)+" (Mod, "+moderator_attendance+")")
+            if moderator.find(";"):
+                moderators = split_participant_string(moderator)
+        except ValueError:
+            moderators.append(moderator)
+
+        moderator_attendance = "Unknown"
+        for mod in moderators:
+            try:
+                moderator_attendance = participants[mod]
+            except KeyError:
+                pass
+            moderator_attendance = modify_attendance_type(moderator_attendance)
+            people_strings.append(str(moderator)+" (Mod, "+moderator_attendance+")")
 
     for person in people:
         person_attendance = "Unknown"
@@ -238,10 +243,8 @@ class TechRecord:
     def add_info(self, start_time, duration, title, record, stream, admin_tags, notes, interim_room,
                  info_session_participants, info_format):
 
-        if (title.find("CANCELLED") >= 0) or (title.find("WITHDRAWN") >= 0):
-            return
-
-        if info_format == "Meetup":
+        if ((title.find("CANCELLED") >= 0) or (title.find("WITHDRAWN") >= 0) or
+                (title.find("DO NOT USE") >= 0)):
             return
 
         if title.find("Placeholder for Mark") >= 0:
@@ -284,6 +287,10 @@ class TechRecord:
             finally:
                 if complexity != "AMBER" or complexity != "RED":
                     complexity = "AMBER"
+        else:
+            if complexity == "AMBER":
+                if info_format == "Panel":
+                    complexity = "GREEN"
 
         # Add the session format to the notes
         format_note = ""
@@ -299,7 +306,7 @@ class TechRecord:
         match format_given:
             case "Rehearsal" | "Ceremony" | "Performance" | "Auction" | "Concert" | "Gameshow" | \
                  "Other" | "Meeting" | "Dance" | "Workshop" | "Reading" | "Filk Circle" | "Book Launch" | \
-                 "Game" | "Demonstration" | "Party" | "Discussion":
+                 "Game" | "Demonstration" | "Party" | "Discussion" | "Meetup":
                 format_note = format_given
             case "Takedown":
                 format_note = "Strike"
